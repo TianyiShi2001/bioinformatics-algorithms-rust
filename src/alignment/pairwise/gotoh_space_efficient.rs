@@ -39,8 +39,8 @@ impl<F: MatchFunc> GotohSpaceEfficientAligner<F> {
     pub fn new(scoring: Scoring<F>) -> Self {
         GotohSpaceEfficientAligner { scoring }
     }
-    pub fn global<'a>(&mut self, x: &'a Seq, y: &'a Seq) -> AlignmentResult<'a> {
-        let alignment = self.nw_recursive(
+    pub fn global<'a>(&self, x: &'a Seq, y: &'a Seq) -> AlignmentResult<'a> {
+        let alignment = self.compute_recursive(
             x,
             y,
             x.len(),
@@ -54,12 +54,14 @@ impl<F: MatchFunc> GotohSpaceEfficientAligner<F> {
             score,
             x,
             y,
-            i: 0,
-            j: 0,
+            xstart: 0,
+            ystart: 0,
+            xend: x.len(),
+            yend: y.len(),
         };
     }
     /// Recursively compute alignments of sub-sequences and concatenating them
-    fn nw_recursive(
+    fn compute_recursive(
         &self,
         x: &Seq,
         y: &Seq,
@@ -67,13 +69,13 @@ impl<F: MatchFunc> GotohSpaceEfficientAligner<F> {
         n: usize,
         tb: Score,
         te: Score,
-    ) -> Vec<Direction> {
+    ) -> Vec<AlignmentOperation> {
         // * m = x.len(); n = y.len()
         if n == 0 {
-            return vec![Direction::Del; m];
+            return vec![AlignmentOperation::Del; m];
         }
         if m == 0 {
-            return vec![Direction::Ins; n];
+            return vec![AlignmentOperation::Ins; n];
         }
         if m == 1 {
             return self.nw_onerow(x[0], y, n, tb, te);
@@ -81,14 +83,14 @@ impl<F: MatchFunc> GotohSpaceEfficientAligner<F> {
         let (imid, jmid, join_by_deletion) = self.find_mid(x, y, m, n, tb, te);
         return if join_by_deletion {
             [
-                self.nw_recursive(&x[..imid - 1], &y[..jmid], imid - 1, jmid, tb, 0),
-                vec![Direction::Del; 2],
-                self.nw_recursive(&x[imid + 1..], &y[jmid..], m - imid - 1, n - jmid, 0, te),
+                self.compute_recursive(&x[..imid - 1], &y[..jmid], imid - 1, jmid, tb, 0),
+                vec![AlignmentOperation::Del; 2],
+                self.compute_recursive(&x[imid + 1..], &y[jmid..], m - imid - 1, n - jmid, 0, te),
             ]
             .concat()
         } else {
             [
-                self.nw_recursive(
+                self.compute_recursive(
                     &x[..imid],
                     &y[..jmid],
                     imid,
@@ -96,7 +98,7 @@ impl<F: MatchFunc> GotohSpaceEfficientAligner<F> {
                     tb,
                     self.scoring.gap_open,
                 ),
-                self.nw_recursive(
+                self.compute_recursive(
                     &x[imid..],
                     &y[jmid..],
                     m - imid,
@@ -187,7 +189,7 @@ impl<F: MatchFunc> GotohSpaceEfficientAligner<F> {
         }
         (cc, dd)
     }
-    fn nw_onerow(&self, x: u8, y: &Seq, n: usize, tb: Score, te: Score) -> Vec<Direction> {
+    fn nw_onerow(&self, x: u8, y: &Seq, n: usize, tb: Score, te: Score) -> Vec<AlignmentOperation> {
         let score_by_indels_only =
             max(tb, te) + self.scoring.gap_extend * (n as Score + 1) + self.scoring.gap_open;
         let mut max = score_by_indels_only;
@@ -210,19 +212,19 @@ impl<F: MatchFunc> GotohSpaceEfficientAligner<F> {
         }
         return if max == score_by_indels_only {
             let mut res = Vec::with_capacity(n + 1);
-            res.push(Direction::Del);
+            res.push(AlignmentOperation::Del);
             for _j in 0..n {
-                res.push(Direction::Ins)
+                res.push(AlignmentOperation::Ins)
             }
             res
         } else {
             let mut res = Vec::with_capacity(n);
             for _j in 0..maxj_ {
-                res.push(Direction::Ins)
+                res.push(AlignmentOperation::Ins)
             }
-            res.push(Direction::Sub);
+            res.push(AlignmentOperation::Sub);
             for _j in 0..(n - maxj_ - 1) {
-                res.push(Direction::Ins)
+                res.push(AlignmentOperation::Ins)
             }
             res
         };

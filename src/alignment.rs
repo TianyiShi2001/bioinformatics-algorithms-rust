@@ -2,12 +2,14 @@ pub mod pairwise;
 
 #[derive(Debug, Default)]
 pub struct AlignmentResult<'a> {
-    pub alignment: Vec<Direction>,
+    pub alignment: Vec<AlignmentOperation>,
     pub score: i32,
     pub x: &'a [u8],
     pub y: &'a [u8],
-    pub i: usize,
-    pub j: usize,
+    pub xstart: usize,
+    pub ystart: usize,
+    pub xend: usize,
+    pub yend: usize,
 }
 
 impl<'a> AlignmentResult<'a> {
@@ -15,27 +17,27 @@ impl<'a> AlignmentResult<'a> {
         let gap_char = gap_char as u8;
         let mut x: Vec<u8> = Vec::with_capacity(self.alignment.len());
         let mut y: Vec<u8> = Vec::with_capacity(self.alignment.len());
-        let mut i = self.i;
-        let mut j = self.j;
+        let mut i = self.xstart;
+        let mut j = self.ystart;
         for dir in &self.alignment {
             match dir {
-                Direction::Del => {
+                AlignmentOperation::Del => {
                     x.push(self.x[i]);
                     y.push(gap_char);
                     i += 1;
                 }
-                Direction::Ins => {
+                AlignmentOperation::Ins => {
                     x.push(gap_char);
                     y.push(self.y[j]);
                     j += 1;
                 }
-                Direction::Sub => {
+                AlignmentOperation::Sub => {
                     x.push(self.x[i]);
                     y.push(self.y[j]);
                     i += 1;
                     j += 1;
                 }
-                Direction::None => {}
+                AlignmentOperation::None => {}
             }
         }
         unsafe {
@@ -160,30 +162,35 @@ impl<F: MatchFunc> Scoring<F> {
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub enum Direction {
+pub enum AlignmentOperation {
     Del, // up
     Ins, // left
     Sub, // diagonal
+    //Match,
     None,
 }
 
 pub type Score = i32;
 pub type Matrix<T> = Vec<Vec<T>>;
 pub type ScoreMatrix = Matrix<Score>;
-pub type TracebackMatrix = Matrix<Direction>;
+pub type TracebackMatrix = Matrix<AlignmentOperation>;
 pub type Seq = [u8];
 pub type Coords = (usize, usize);
 
-pub fn compute_max_score_and_direction(up: Score, left: Score, diag: Score) -> (Score, Direction) {
+pub fn compute_max_score_and_operation(
+    up: Score,
+    left: Score,
+    diag: Score,
+) -> (Score, AlignmentOperation) {
     let mut max = up;
-    let mut dir = Direction::Del;
+    let mut dir = AlignmentOperation::Del;
     if left > max {
         max = left;
-        dir = Direction::Ins;
+        dir = AlignmentOperation::Ins;
     }
     if diag > max {
         max = diag;
-        dir = Direction::Sub;
+        dir = AlignmentOperation::Sub;
     }
     (max, dir)
 }
