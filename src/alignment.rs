@@ -31,7 +31,7 @@ impl<'a> AlignmentResult<'a> {
                     y.push(self.y[j]);
                     j += 1;
                 }
-                AlignmentOperation::Sub => {
+                AlignmentOperation::Subst | AlignmentOperation::Match => {
                     x.push(self.x[i]);
                     y.push(self.y[j]);
                     i += 1;
@@ -50,7 +50,15 @@ impl<'a> AlignmentResult<'a> {
 
 /// Trait required to instantiate a Scoring instance
 pub trait MatchFunc {
-    fn score(&self, a: u8, b: u8) -> i32;
+    fn score(&self, a: u8, b: u8) -> Score;
+    fn score_with_operation(&self, a: u8, b: u8) -> (Score, AlignmentOperation) {
+        let score = self.score(a, b);
+        if a == b {
+            (score, AlignmentOperation::Match)
+        } else {
+            (score, AlignmentOperation::Subst)
+        }
+    }
 }
 
 /// A concrete data structure which implements trait MatchFunc with constant
@@ -159,14 +167,54 @@ impl<F: MatchFunc> Scoring<F> {
             match_scores: None,
         }
     }
+    pub fn max_score(&self, up: Score, left: Score, diag: Score, xi: u8, yj: u8) -> Score {
+        let up = up + self.gap_extend;
+        let left = left + self.gap_extend;
+        let diag = diag + self.match_fn.score(xi, yj);
+        let mut max = up;
+        if left > max {
+            max = left;
+        }
+        if diag > max {
+            max = diag;
+        }
+        max
+    }
+    pub fn max_score_and_operation(
+        &self,
+        up: Score,
+        left: Score,
+        diag: Score,
+        xi: u8,
+        yj: u8,
+    ) -> (Score, AlignmentOperation) {
+        let up = up + self.gap_extend;
+        let left = left + self.gap_extend;
+        let diag = diag + self.match_fn.score(xi, yj);
+        let mut max = up;
+        let mut operation = AlignmentOperation::Del;
+        if left > max {
+            max = left;
+            operation = AlignmentOperation::Ins;
+        }
+        if diag > max {
+            max = diag;
+            operation = if xi == yj {
+                AlignmentOperation::Match
+            } else {
+                AlignmentOperation::Subst
+            };
+        }
+        (max, operation)
+    }
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum AlignmentOperation {
-    Del, // up
-    Ins, // left
-    Sub, // diagonal
-    //Match,
+    Del,   // up
+    Ins,   // left
+    Subst, // diagonal
+    Match,
     None,
 }
 
@@ -177,20 +225,21 @@ pub type TracebackMatrix = Matrix<AlignmentOperation>;
 pub type Seq = [u8];
 pub type Coords = (usize, usize);
 
-pub fn compute_max_score_and_operation(
+pub fn max_score_and_operation_precomputed(
     up: Score,
     left: Score,
     diag: Score,
+    diag_op: AlignmentOperation,
 ) -> (Score, AlignmentOperation) {
     let mut max = up;
-    let mut dir = AlignmentOperation::Del;
+    let mut operation = AlignmentOperation::Del;
     if left > max {
         max = left;
-        dir = AlignmentOperation::Ins;
+        operation = AlignmentOperation::Ins;
     }
     if diag > max {
         max = diag;
-        dir = AlignmentOperation::Sub;
+        operation = diag_op;
     }
-    (max, dir)
+    (max, operation)
 }

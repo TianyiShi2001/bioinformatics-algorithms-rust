@@ -222,7 +222,11 @@ impl<F: MatchFunc> GotohSpaceEfficientAligner<F> {
             for _j in 0..maxj_ {
                 res.push(AlignmentOperation::Ins)
             }
-            res.push(AlignmentOperation::Sub);
+            if x == y[maxj_] {
+                res.push(AlignmentOperation::Match);
+            } else {
+                res.push(AlignmentOperation::Subst);
+            }
             for _j in 0..(n - maxj_ - 1) {
                 res.push(AlignmentOperation::Ins)
             }
