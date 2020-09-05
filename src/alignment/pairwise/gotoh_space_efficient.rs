@@ -187,6 +187,7 @@ impl<F: MatchFunc> GotohSpaceEfficientAligner<F> {
                 cc[j] = c;
             }
         }
+        dd[0] = cc[0]; // otherwise indels at start/end will be free (semiglobal>)
         (cc, dd)
     }
     fn nw_onerow(&self, x: u8, y: &Seq, n: usize, tb: Score, te: Score) -> Vec<AlignmentOperation> {
