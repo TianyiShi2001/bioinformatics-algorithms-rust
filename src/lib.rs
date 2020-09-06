@@ -1,2 +1,3 @@
 pub mod alignment;
-pub mod seqanalysis;
+pub mod seq_analysis;
+pub mod utils;

@@ -9,3 +9,4 @@ edition = "2018"
 [dependencies]
 bio = "0.31"
 lazy_static = "1.4"
+phf = "0.8"
