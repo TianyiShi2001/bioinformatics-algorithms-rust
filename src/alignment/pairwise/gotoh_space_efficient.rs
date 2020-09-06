@@ -45,7 +45,7 @@ impl<F: MatchFunc> GotohSpaceEfficientAligner<F> {
             y,
             x.len(),
             y.len(),
-            self.scoring.gap_open,
+            self.scoring.gap_open, // 0 for semiglobal?
             self.scoring.gap_open,
         );
         let score = self.cost_only(x, y, false, self.scoring.gap_open).0[y.len()];

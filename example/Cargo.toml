@@ -7,3 +7,4 @@ edition = "2018"
 
 [dependencies]
 bioinformatics-algorithms = {path=".."}
+lazy_static = "1.4"
