@@ -31,16 +31,16 @@
 use crate::alignment::*;
 use std::cmp::max;
 
-pub struct GotohSpaceEfficientAligner<F: MatchFunc> {
-    scoring: Scoring<F>,
+pub struct GotohSpaceEfficientAligner<'s, F: MatchFunc> {
+    scoring: &'s Scoring<F>,
 }
 
-impl<F: MatchFunc> GotohSpaceEfficientAligner<F> {
-    pub fn new(scoring: Scoring<F>) -> Self {
+impl<'s, F: MatchFunc> GotohSpaceEfficientAligner<'s, F> {
+    pub fn new(scoring: &'s Scoring<F>) -> Self {
         GotohSpaceEfficientAligner { scoring }
     }
     pub fn global<'a>(&self, x: &'a Seq, y: &'a Seq) -> AlignmentResult<'a> {
-        let alignment = self.compute_recursive(
+        let operations = self.compute_recursive(
             x,
             y,
             x.len(),
@@ -50,7 +50,7 @@ impl<F: MatchFunc> GotohSpaceEfficientAligner<F> {
         );
         let score = self.cost_only(x, y, false, self.scoring.gap_open).0[y.len()];
         return AlignmentResult {
-            alignment,
+            operations,
             score,
             x,
             y,
@@ -156,7 +156,7 @@ impl<F: MatchFunc> GotohSpaceEfficientAligner<F> {
         let mut c: Score; // C(i, j-1)
         let mut s: Score; // C(i-1, j-1)
         let mut t: Score;
-        t = self.scoring.gap_open; // originally self.scoring.gap_open;
+        t = self.scoring.gap_open;
         for j in 1..n {
             t += self.scoring.gap_extend;
             cc[j] = t;
@@ -168,6 +168,7 @@ impl<F: MatchFunc> GotohSpaceEfficientAligner<F> {
             t += self.scoring.gap_extend;
             c = t;
             cc[0] = c;
+            // dd[0] = c;
             e = Score::MIN;
             for j in 1..n {
                 e = max(e, c + self.scoring.gap_open) + self.scoring.gap_extend; // update e to I[i,j]
@@ -187,7 +188,7 @@ impl<F: MatchFunc> GotohSpaceEfficientAligner<F> {
                 cc[j] = c;
             }
         }
-        dd[0] = cc[0]; // otherwise indels at start/end will be free (semiglobal>)
+        dd[0] = cc[0]; // otherwise indels at start/end will be free
         (cc, dd)
     }
     fn nw_onerow(&self, x: u8, y: &Seq, n: usize, tb: Score, te: Score) -> Vec<AlignmentOperation> {
